@@ -3,3 +3,4 @@
 
 O programa consiste de 6 funções principais, como definida nas especificações do trabalho prático.
 
+Publicado somente para facilitar visualização e colaboração entre os integrantes do grupo.
