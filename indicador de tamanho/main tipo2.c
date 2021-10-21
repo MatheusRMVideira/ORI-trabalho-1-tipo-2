@@ -1,4 +1,4 @@
-//Trabalho Pratico 1- Organizacao e Recuperacao de Informacoes - UFScar
+//Trabalho Pratico 1- Organizacao e Recuperacao da Informacao - UFScar
 //Professor: Ricardo Cerri
 //Integrantes do Grupo:
 //Matheus Rezende Milani Videira
@@ -9,9 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* TODO
-    Remocao logica
-*/
+#define BUFF_SIZE 256 //Tamanho do buffer das strings
 
 struct files {
     FILE* dataBase; //Arquivo principal onde os registros sao armazenados
@@ -21,10 +19,10 @@ struct files {
 
 struct registro {
     unsigned int key; //Chave do registro
-    char lastName[256]; //Sobrenome
-    char firstName[256]; //Nome
-    char city[256]; //Cidade
-    char address[256]; //Endereco
+    char lastName[BUFF_SIZE]; //Sobrenome
+    char firstName[BUFF_SIZE]; //Nome
+    char city[BUFF_SIZE]; //Cidade
+    char address[BUFF_SIZE]; //Endereco
     char state[2]; //Estado (sigla)
     unsigned long long int zip; //CEP
     unsigned long long int phone; //Telefone
@@ -55,21 +53,21 @@ int open_files(struct files *arquivos, FILE* out){
     long int firstEmptyReg = -1; //Os primeiros 4 bytes do arquivo principal sao utilizados para rastrear espacos disponiveis
     char fileEnd = '@'; //Alternativo ao EOF, que apresentou inconsistencias no Windows
     //Abre os arquivos
-    arquivos->dataBase = fopen("./dataBase.bin", "rb+");
-    arquivos->primaryIndex = fopen("./primaryIndex.bin", "rb+");
-    arquivos->secundaryIndex = fopen("./secundaryIndex.bin", "rb+");
+    arquivos->dataBase = fopen("dataBase.bin", "rb+");
+    arquivos->primaryIndex = fopen("primaryIndex.bin", "rb+");
+    arquivos->secundaryIndex = fopen("secundaryIndex.bin", "rb+");
     //Caso um dos arquivos nao esteja aberto, cria ele e abre
     if(arquivos->dataBase == NULL){ 
-        arquivos->dataBase = fopen("./dataBase.bin", "wb+");
+        arquivos->dataBase = fopen("dataBase.bin", "wb+");
         fwrite(&firstEmptyReg, sizeof(firstEmptyReg), 1, arquivos->dataBase);
         fwrite(&fileEnd, sizeof(fileEnd), 1, arquivos->dataBase);
     }
     if(arquivos->primaryIndex == NULL){
-        arquivos->primaryIndex = fopen("./primaryIndex.bin", "wb+");
+        arquivos->primaryIndex = fopen("primaryIndex.bin", "wb+");
         fwrite(&fileEnd, sizeof(fileEnd), 1, arquivos->primaryIndex);
     }
     if(arquivos->secundaryIndex == NULL){
-        arquivos->secundaryIndex = fopen("./secundaryIndex.bin", "wb+");
+        arquivos->secundaryIndex = fopen("secundaryIndex.bin", "wb+");
         fwrite(&fileEnd, sizeof(fileEnd), 1, arquivos->secundaryIndex);
     }
     //Caso nao consiga abrir ou criar um dos arquivos, finaliza o programa
@@ -109,14 +107,14 @@ int save_to_file(struct files *arquivos, struct registro reg){
     fseek(arquivos->primaryIndex, 0, SEEK_SET);
 
     //Algoritmo para insercao logica no arquivo principal e reutilizacao de espaco no indice primario
-    //Utiliza a Worst-fit para determinar o melhor espaco para a insercao do registro
+    //Utiliza a Best-Fit para determinar o melhor espaco para a insercao do registro
     unsigned int maxRegSize, tempRegSize; //Variaveis para armazenar o tamanho dos registros para comparacao
     char tempValidReg; //Armazena se o registro lido eh valido
     //Variaveis para armazenar a posicao dos registros da lista ligada
     long int maxRegPos, nextRegPos, tempRegPos, tempNextRegPos, tempPrevRegPos, prevRegPos;
     int endOfprimaryReg = 0; //Variavel que indica se o ponteiro esta no final ou nao do indice primario
-    maxRegSize = 0;
-    nextRegPos = 0;
+    maxRegSize = 999999999;
+    maxRegPos = prevRegPos = nextRegPos = 0;
     tempPrevRegPos = 0;
 
     //Le o inicio do arquivo principal para verificar se existe algum espaco livre
@@ -135,7 +133,7 @@ int save_to_file(struct files *arquivos, struct registro reg){
             fread(&tempRegSize, sizeof(tempRegSize), 1, arquivos->dataBase);
             fread(&tempNextRegPos, sizeof(tempRegPos), 1, arquivos->dataBase);
             //Se a posicao em que estamos, for a maior, armazena ela
-            if(tempRegSize > maxRegSize && tempRegSize > regSize){
+            if(tempRegSize < maxRegSize && tempRegSize >= regSize){
                 maxRegSize = tempRegSize;
                 maxRegPos = tempRegPos;
                 nextRegPos = tempNextRegPos;
@@ -169,9 +167,10 @@ int save_to_file(struct files *arquivos, struct registro reg){
         endOfprimaryReg = 1;
     }
     
-    if(maxRegSize > 0){ //Se o algoritmo de Worst-Fit encontrou uma posicao
+    if(maxRegSize != 999999999){ //Se o algoritmo de Worst-Fit encontrou uma posicao
         fseek(arquivos->dataBase, maxRegPos, SEEK_SET); //Avanca para ela
     } else {
+        maxRegSize = 0;
         fseek(arquivos->dataBase, -1, SEEK_END); //Senao avanca para o final do arquivo principal
     }
 
@@ -190,7 +189,7 @@ int save_to_file(struct files *arquivos, struct registro reg){
     //Formato:[tamanho do nome][nome][offset para indice primario]
     //O offset forma uma lista ligada com todas as entradas correspondentes a esse nome no indice primario
     unsigned int tempNameSize; //Temporario tamanho do nome
-    char tempBuffer[256]; //Temporario armazena o nome
+    char tempBuffer[BUFF_SIZE]; //Temporario armazena o nome
     int foundName = 0; //Se achou o nome no indice secundario ou nao
 
     //Volta ao inicio do arquivo de indice secundario
@@ -326,7 +325,7 @@ int save_to_file(struct files *arquivos, struct registro reg){
 //Captura a entrada de dados do usuario e salva em um registro
 //Retorna: 1 - caso sucesso e 0 - caso falha
 int in_to_reg(struct registro* reg, FILE* in, FILE* out){
-    char strInput[256];
+    char strInput[BUFF_SIZE];
     char temp;
     fscanf(in, "%c",&temp); //Limpa possiveis '\n' presentes na stdin
     fprintf(out, "Inserindo um registro\n");
@@ -584,7 +583,7 @@ int search_by_key(struct files *arquivos, struct registro *reg, unsigned int sea
 //Caso o nome seja encontrado, imprime todos os registros correspondentes
 //Retorna: 1 - caso sucesso, 0 - caso falha
 int search_by_name(struct files *arquivos, struct registro *reg, char *searchName, FILE* out){
-    char tempStr[256];
+    char tempStr[BUFF_SIZE];
     unsigned int tempUInt;
     long int dataBasePos, primaryIndexPos;
     char validReg;
@@ -775,8 +774,10 @@ int main(){
     scanf("%d", &escolha);
     getchar();
     if(escolha == 2){
-        out = fopen("./output.txt", "w");
-        in = fopen("./input.txt", "r");
+        out = fopen("output.txt", "w");
+        in = fopen("input.txt", "r");
+        printf("A saida do programa esta no arquivo output.txt\n");
+        printf("Aguarde o programa finalizar\n");
         if(in == NULL){
             printf("Erro ao ler arquivo input.txt, finalizando o programa\n");
             fclose(in);
@@ -825,7 +826,7 @@ int main(){
                 }
                 break;
             case 5:
-                char tempStr[256];
+                char tempStr[BUFF_SIZE];
                 fprintf(out, "Digite um nome para procura-lo: ");
                 fscanf(in, "%s", tempStr);
                 if(search_by_name(&arquivos, &reg, tempStr, out) == 1){

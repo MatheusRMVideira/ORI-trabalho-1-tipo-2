@@ -8,6 +8,10 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",
+                "-Wall",
+                "-pedantic", 
+                "-O2",
+                "-Wno-unused-result",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe"
             ],
